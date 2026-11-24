@@ -121,7 +121,7 @@ Also flag the reverse: anything the diff does that the story never predicted get
 Dispatch four sub-agents in parallel via the Agent tool instead of walking categories sequentially. This is not scaled to diff size: a two-line change to a published payload key, a constant, or a mapping row can break another service, and those are exactly the diffs a single reviewer reads in one pass and clears. Size the *depth* of each bucket to the diff if you like; never skip the fan-out itself.
 - **Correctness agent:** Categories 1 (race), 5 (no assumptions), 7 (edge cases), 10 (questions), 12 (bet-your-life)
 - **Quality agent:** Categories 2 (DRY), 3 (efficient), 4 (not lazy), 9 (complexity/SoC), 16 (pattern alignment)
-- **Security & surface agent:** Categories 11 (security), 13 (implicit model surface), 15 (newly reachable helpers)
+- **Security & surface agent:** Categories 11 (security, with the OWASP ID on every finding), 13 (implicit model surface), 15 (newly reachable helpers)
 - **Tests & perf agent:** Categories 6 (queries), 8 (missing tests), 14 (no lazy imports), 17 (real-data validation)
 - **Frontend agent (only when the diff touches frontend files):** Categories 19 (accessibility), 20 (React rendering and state), plus 7 (edge cases) and 12 (bet-your-life) read from the user's side of the screen: loading, empty, error and slow-network states.
 
@@ -307,7 +307,25 @@ List the questions you haven't answered yet, then go answer them. An unanswered 
 
 Then answer each. If you cannot generate 3 distinct PR-specific questions, say so explicitly — fabricating filler defeats the purpose.
 
-### 11. Security
+### 11. Security (mapped to OWASP)
+Every security finding names the OWASP item it falls under, from the [OWASP Top 10 (2021)](https://owasp.org/Top10/) or, for API endpoints, the [OWASP API Security Top 10 (2023)](https://owasp.org/API-Security/editions/2023/en/0x11-t10/). Example: "A01:2021 Broken Access Control" or "API1:2023 Broken Object Level Authorization". If no item fits, say "no OWASP item" rather than forcing one.
+
+**OWASP checklist (walk it for every PR that touches a request path, auth, data access, config, dependencies or CI):**
+| OWASP item | What to check in the diff |
+|---|---|
+| A01 Broken Access Control / API1 BOLA / API5 BFLA | Object-level and function-level permission on every new endpoint, mutation and handler (see "Securing models" below). |
+| A02 Cryptographic Failures | Weak hashes, hardcoded keys or IVs, secrets sent over plain HTTP, sensitive data stored unencrypted. |
+| A03 Injection (incl. XSS) | SQL, command, template and header injection; unescaped output; `dangerouslySetInnerHTML`; `mark_safe`. |
+| A04 Insecure Design / API6 Unrestricted Access to Sensitive Business Flows | A flow that can be abused at scale (sign-up, coupons, refunds, OTP, checkout) with no rate limit, quota or step check. |
+| A05 Security Misconfiguration / API8 | CORS `*` with credentials, debug or verbose errors on, missing security headers or CSP, cookies without `Secure`, `HttpOnly` or `SameSite`, permissive storage buckets. |
+| A06 Vulnerable and Outdated Components | New or bumped dependencies: maintained, pinned, lockfile updated, no known advisory. |
+| A07 Identification and Authentication Failures / API2 | Session fixation, missing re-auth for sensitive changes, JWT `alg: none` or unverified signatures, password reset flaws, missing CSRF protection on cookie-authenticated state changes. |
+| A08 Software and Data Integrity Failures | Unsigned webhooks, unsafe deserialization, CI workflows using `pull_request_target` with checked-out PR code, third-party actions not pinned to a commit. |
+| A09 Security Logging and Monitoring Failures | Security events (failed logins, permission denials, payment changes) not logged; secrets or PII written to logs. |
+| A10 SSRF / API7 | Server-side fetch of a user-supplied URL without an allowlist; open redirects. |
+| API3 Broken Object Property Level Authorization | Mass assignment (a client can set fields it should not), or responses that expose fields the caller should not see. |
+| API4 Unrestricted Resource Consumption | No pagination limit, no upload size limit, unbounded loops or queries driven by user input. |
+
 **General**
 - Input handling: any user-controlled value treated as trusted? Validate, sanitize, and bound length at boundaries.
 - Injection: SQL (raw queries, `extra`, `RawSQL`), command (`subprocess` with `shell=True`), template, XSS (unescaped output, `dangerouslySetInnerHTML`, `mark_safe`), prototype pollution.

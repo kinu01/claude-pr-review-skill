@@ -48,7 +48,7 @@ Then ask Claude Code to run `/pr-review` after you write code and before you com
 
 **Quality:** 2 no repeated logic, 3 efficient code, 4 not lazy code, 9 complexity and separation of concerns, 16 pattern alignment with the codebase.
 
-**Security and surface:** 11 security, 13 implicit model surface changes, 15 newly reachable code paths.
+**Security and surface:** 11 security, mapped to the OWASP Top 10 and the OWASP API Security Top 10 (every security finding names its OWASP item), 13 implicit model surface changes, 15 newly reachable code paths.
 
 **Tests and performance:** 6 optimized queries, 8 missing tests, 14 no lazy imports (only if your repo enforces it), 17 validate against real data (local runs only).
 
