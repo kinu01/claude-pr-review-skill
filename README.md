@@ -21,7 +21,7 @@ That's it. The next pull request gets a review.
 | Input | Default | What it does |
 |---|---|---|
 | `anthropic_api_key` | (required) | Your Anthropic API key. |
-| `model` | `claude-sonnet-5-5` | The Claude model that runs the review. |
+| `model` | `claude-opus-5-5` | The Claude model that runs the review. Set `claude-sonnet-5-5` for lower cost. |
 | `depth` | `full` | `full`: a skeptic checks every finding. `quick`: skeptics only on high-severity findings, which costs less. |
 | `max_turns` | `60` | An upper limit on agent turns, to cap cost. |
 
