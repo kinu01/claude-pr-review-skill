@@ -7,6 +7,10 @@ pr-review is a careful code reviewer for pull requests, built on Claude. It runs
 1. **On every pull request, as a GitHub Action.** It reads which files changed and picks the reviewers that fit: frontend checks for React and CSS files, backend checks for API, database and job code, and a security pass on auth, payment, webhook and workflow files. Then a skeptic agent tries to prove each finding wrong. Only the findings that survive are posted, as inline comments plus one summary with a verdict.
 2. **In Claude Code on your own machine,** as a skill you run before you commit.
 
+![A pr-review summary comment on a pull request: what the PR does, then one must-fix security finding tagged with its OWASP items](docs/review-example.png)
+
+See it live on [kinu01/pr-review-demo](https://github.com/kinu01/pr-review-demo/pulls): three pull requests, each with one planted bug (a React form a keyboard user cannot submit, a wallet withdrawal race, a payment webhook with no signature check). pr-review caught all three, plus two problems nobody planted.
+
 ## Why skeptics
 
 AI reviewers are confident, and confident-but-wrong comments waste a reviewer's time. So every finding goes to a separate skeptic agent that sees the claim and the code but not the finder's reasoning. Its only job is to refute the finding by tracing the real code path. A refuted finding is not posted as a comment. It is listed in the summary under "Considered and dismissed" with the line that disproves it, so nothing disappears silently.
@@ -29,6 +33,20 @@ That's it. The next pull request gets a review.
 | `max_turns` | `60` | An upper limit on agent turns, to cap cost. |
 
 A pull request that changes only docs or images gets a one-line comment and no Claude run, so it costs nothing.
+
+**Your own bot name (optional).** By default comments come from `github-actions[bot]`. To post as your own name, create a GitHub App (Contents read-only, Issues and Pull requests read and write, webhook off), install it on the repo, save its App ID and private key as secrets, and pass its token:
+
+```yaml
+      - uses: actions/create-github-app-token@v3
+        id: app
+        with:
+          app-id: ${{ secrets.PR_REVIEW_APP_ID }}
+          private-key: ${{ secrets.PR_REVIEW_APP_PRIVATE_KEY }}
+      - uses: kinu01/claude-pr-review-skill@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ steps.app.outputs.token }}
+```
 
 **Safety.** The reviewer is read-only: it can read the diff and files, and it can comment, but it cannot edit, commit or push. It never runs the pull request's code. By default it does not run on pull requests from forks. Text inside the pull request is treated as data to review, never as instructions.
 
