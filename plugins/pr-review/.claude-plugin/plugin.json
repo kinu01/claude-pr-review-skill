@@ -1,0 +1,8 @@
+{
+  "name": "pr-review",
+  "description": "Careful pull request review with reviewer agents, skeptic verification and a clear verdict",
+  "version": "1.0.0",
+  "author": {
+    "name": "Emmanuel Shola"
+  }
+}

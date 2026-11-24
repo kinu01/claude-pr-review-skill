@@ -1,0 +1,80 @@
+name: "pr-review"
+description: "Review every pull request with Claude: reviewer agents picked from the changed files, skeptics that try to disprove each finding, and a clear verdict."
+author: "Emmanuel Shola"
+branding:
+  icon: "check-circle"
+  color: "orange"
+
+inputs:
+  anthropic_api_key:
+    description: "Your Anthropic API key. Store it as a repository secret."
+    required: true
+  github_token:
+    description: "Token used to read the pull request and post comments."
+    required: false
+    default: ${{ github.token }}
+  model:
+    description: "Claude model for the review."
+    required: false
+    default: "claude-sonnet-5-5"
+  depth:
+    description: "full = a skeptic checks every finding. quick = skeptics only on high-severity findings (cheaper)."
+    required: false
+    default: "full"
+  max_turns:
+    description: "Upper limit on agent turns, to cap cost."
+    required: false
+    default: "60"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Pick reviewers from the changed files
+      id: route
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github_token }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+      run: |
+        if [ -z "$PR_NUMBER" ]; then
+          echo "pr-review runs on pull_request events only." >&2
+          exit 1
+        fi
+        ROUTE=$(gh pr diff "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --name-only | node "$GITHUB_ACTION_PATH/scripts/route.mjs")
+        echo "json=$ROUTE" >> "$GITHUB_OUTPUT"
+        echo "review=$(echo "$ROUTE" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).review))')" >> "$GITHUB_OUTPUT"
+        echo "Router: $ROUTE"
+
+    - name: Nothing to review
+      if: steps.route.outputs.review != 'true'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github_token }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+      run: |
+        gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body "pr-review: this pull request changes only docs or images, so there is no code to review."
+
+    - name: Review with Claude
+      if: steps.route.outputs.review == 'true'
+      uses: anthropics/claude-code-action@v1
+      with:
+        anthropic_api_key: ${{ inputs.anthropic_api_key }}
+        github_token: ${{ inputs.github_token }}
+        plugin_marketplaces: "https://github.com/kinu01/claude-pr-review-skill.git"
+        plugins: "pr-review@kinu01"
+        use_sticky_comment: "true"
+        prompt: |
+          Run the pr-review skill in Mode C (GitHub Action, unattended).
+
+          REPO: ${{ github.repository }}
+          PR NUMBER: ${{ github.event.pull_request.number }}
+          DEPTH: ${{ inputs.depth }}
+          ROUTER: ${{ steps.route.outputs.json }}
+
+          The PR branch is checked out in the current directory. Read it with `gh pr diff` and the Read, Grep and Glob tools.
+          Post each confirmed finding with mcp__github_inline_comment__create_inline_comment (confirmed: true),
+          then one summary with `gh pr comment`. Do not reply with review text as a message.
+        claude_args: |
+          --model ${{ inputs.model }}
+          --max-turns ${{ inputs.max_turns }}
+          --allowedTools "Skill,Task,Agent,Read,Grep,Glob,Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr comment:*),Bash(git log:*),Bash(git diff:*),Bash(git show:*),mcp__github_inline_comment__create_inline_comment"

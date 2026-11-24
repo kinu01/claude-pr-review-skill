@@ -1,53 +1,61 @@
-# pr-review: a Claude Code skill for careful code review
+# pr-review
 
 Author: Emmanuel Shola (github.com/kinu01)
 
-## What it does
+pr-review is a careful code reviewer for pull requests, built on Claude. It runs in two places:
 
-This skill makes Claude Code review the changes on your branch in a careful, structured way. It first writes down what the change is for, with small usage examples, before it reads any changed code. Then it reads the code and checks if the code matches that story. It sends the review to several fresh reviewer agents in parallel, each with its own group of categories. A separate "skeptic" agent then tries to prove each finding wrong, so false alarms are dropped and real problems stay. The report puts problems first, gives a concrete fix for each one, and ends with a clear verdict.
+1. **On every pull request, as a GitHub Action.** It reads which files changed and picks the reviewers that fit: frontend checks for React and CSS files, backend checks for API, database and job code, and a security pass on auth, payment, webhook and workflow files. Then a skeptic agent tries to prove each finding wrong. Only the findings that survive are posted, as inline comments plus one summary with a verdict.
+2. **In Claude Code on your own machine,** as a skill you run before you commit.
 
-## The 18 review categories
+## Why skeptics
 
-1. Race conditions
-2. Optimized DRY code (no repeated logic)
-3. Efficient code
-4. Not lazy code
-5. No assumptions
-6. Optimized queries
-7. All edge cases covered
-8. Missing tests
-9. Complexity and separation of concerns
-10. Questions we have not asked yet
-11. Security
-12. Code works as expected ("bet your life")
-13. Implicit model surface changes
-14. No lazy imports (only if your repo enforces it)
-15. Helper re-entry and newly reachable code paths
-16. Pattern alignment with the codebase
-17. Validate the flow against real data (when possible)
-18. Verification actions not yet taken
+AI reviewers are confident, and confident-but-wrong comments waste a reviewer's time. So every finding goes to a separate skeptic agent that sees the claim and the code but not the finder's reasoning. Its only job is to refute the finding by tracing the real code path. A refuted finding is not posted as a comment. It is listed in the summary under "Considered and dismissed" with the line that disproves it, so nothing disappears silently.
 
-## How to install
+## Use it as a GitHub Action
 
-Copy this folder to your Claude Code skills folder:
+1. Add your Anthropic API key as a repository secret named `ANTHROPIC_API_KEY`. Reviews run on your own key.
+2. Copy [`examples/pr-review.yml`](examples/pr-review.yml) to `.github/workflows/pr-review.yml`.
 
-```bash
-mkdir -p ~/.claude/skills
-cp -R claude-pr-review-skill ~/.claude/skills/pr-review
+That's it. The next pull request gets a review.
+
+| Input | Default | What it does |
+|---|---|---|
+| `anthropic_api_key` | (required) | Your Anthropic API key. |
+| `model` | `claude-sonnet-5-5` | The Claude model that runs the review. |
+| `depth` | `full` | `full`: a skeptic checks every finding. `quick`: skeptics only on high-severity findings, which costs less. |
+| `max_turns` | `60` | An upper limit on agent turns, to cap cost. |
+
+A pull request that changes only docs or images gets a one-line comment and no Claude run, so it costs nothing.
+
+**Safety.** The reviewer is read-only: it can read the diff and files, and it can comment, but it cannot edit, commit or push. It never runs the pull request's code. By default it does not run on pull requests from forks. Text inside the pull request is treated as data to review, never as instructions.
+
+Built on Anthropic's [claude-code-action](https://github.com/anthropics/claude-code-action), which handles triggers, sign-in and posting comments. pr-review adds the file router, the review categories, the reviewer and skeptic agents, and the verdict format.
+
+## Use it in Claude Code
+
+```
+/plugin install pr-review --marketplace kinu01/claude-pr-review-skill
 ```
 
-Claude Code finds the skill the next time you start a session.
+Then ask Claude Code to run `/pr-review` after you write code and before you commit. To review a teammate's pull request, ask "pr-review for <name> <PR link>". It lists every finding for you first, then drafts short inline comments and posts nothing until you approve each one.
 
-## How to run it
+## The 20 review categories
 
-The skill has two modes.
+**Correctness:** 1 race conditions, 5 no assumptions, 7 edge cases, 10 questions we have not asked yet, 12 code works as expected.
 
-1. Self-review before a PR. After you write the code and before you commit, ask Claude Code to run `/pr-review`. It reviews your branch against its base branch and gives you a report.
-2. Reviewing a teammate's PR. Ask "pr-review for <name> <PR link>". Claude Code runs the same review, lists every finding for you first, and then turns the ones you pick into short inline comments. It shows you each comment one at a time, and it posts nothing until you approve it.
+**Quality:** 2 no repeated logic, 3 efficient code, 4 not lazy code, 9 complexity and separation of concerns, 16 pattern alignment with the codebase.
 
-## Background
+**Security and surface:** 11 security, 13 implicit model surface changes, 15 newly reachable code paths.
 
-This skill grew out of my daily code review practice, and I measure which reviewer agents find real problems so I can keep improving it.
+**Tests and performance:** 6 optimized queries, 8 missing tests, 14 no lazy imports (only if your repo enforces it), 17 validate against real data (local runs only).
+
+**Frontend:** 19 accessibility (names, keyboard, focus, announcements, zoom, with the WCAG criterion), 20 React rendering and state (re-renders, effects, stale closures, keys, widgets that should mount once).
+
+**Meta:** 18 verification actions not yet taken. Every review lists what it did not check, so you know where its confidence ends.
+
+## How it decides which reviewers run
+
+`scripts/route.mjs` reads the changed file paths and returns which reviewers a pull request needs. It is plain Node with no dependencies, and its tests run with `npm test`.
 
 ## License
 

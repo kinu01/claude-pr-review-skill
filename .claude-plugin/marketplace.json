@@ -1,0 +1,20 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "kinu01",
+  "description": "Claude Code plugins by Emmanuel Shola",
+  "owner": {
+    "name": "Emmanuel Shola"
+  },
+  "plugins": [
+    {
+      "name": "pr-review",
+      "description": "Careful pull request review: reviewer agents by category, a skeptic that tries to disprove each finding, and a clear verdict. Runs locally in Claude Code or on every pull request as a GitHub Action.",
+      "author": {
+        "name": "Emmanuel Shola"
+      },
+      "source": "./plugins/pr-review",
+      "category": "development",
+      "homepage": "https://github.com/kinu01/claude-pr-review-skill"
+    }
+  ]
+}
