@@ -13,14 +13,17 @@ AI reviewers are confident, and confident-but-wrong comments waste a reviewer's 
 
 ## Use it as a GitHub Action
 
-1. Add your Anthropic API key as a repository secret named `ANTHROPIC_API_KEY`. Reviews run on your own key.
-2. Copy [`examples/pr-review.yml`](examples/pr-review.yml) to `.github/workflows/pr-review.yml`.
+1. Add one secret to your repository, under Settings, Secrets and variables, Actions:
+   - **With a Claude Pro or Max plan:** run `claude setup-token` on your computer and save the token as `CLAUDE_CODE_OAUTH_TOKEN`. Reviews then count against your plan, with no API bill.
+   - **With an Anthropic API account:** save your API key as `ANTHROPIC_API_KEY`. Reviews are billed to that account.
+2. Copy [`examples/pr-review.yml`](examples/pr-review.yml) to `.github/workflows/pr-review.yml`. It passes whichever secret you set.
 
 That's it. The next pull request gets a review.
 
 | Input | Default | What it does |
 |---|---|---|
-| `anthropic_api_key` | (required) | Your Anthropic API key. |
+| `claude_code_oauth_token` | | A Pro or Max sign-in token from `claude setup-token`. |
+| `anthropic_api_key` | | An Anthropic API key. Set this or the token. |
 | `model` | `claude-opus-5-5` | The Claude model that runs the review. Set `claude-sonnet-5-5` for lower cost. |
 | `depth` | `full` | `full`: a skeptic checks every finding. `quick`: skeptics only on high-severity findings, which costs less. |
 | `max_turns` | `60` | An upper limit on agent turns, to cap cost. |

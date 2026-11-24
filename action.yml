@@ -7,8 +7,13 @@ branding:
 
 inputs:
   anthropic_api_key:
-    description: "Your Anthropic API key. Store it as a repository secret."
-    required: true
+    description: "Your Anthropic API key (bills your API account). Set this or claude_code_oauth_token."
+    required: false
+    default: ""
+  claude_code_oauth_token:
+    description: "A Claude Pro or Max sign-in token from `claude setup-token` (bills your subscription). Set this or anthropic_api_key."
+    required: false
+    default: ""
   github_token:
     description: "Token used to read the pull request and post comments."
     required: false
@@ -38,8 +43,14 @@ runs:
       shell: bash
       env:
         GH_TOKEN: ${{ inputs.github_token }}
+        HAS_KEY: ${{ inputs.anthropic_api_key != '' && 'yes' || '' }}
+        HAS_TOKEN: ${{ inputs.claude_code_oauth_token != '' && 'yes' || '' }}
         PR_NUMBER: ${{ github.event.pull_request.number }}
       run: |
+        if [ -z "$HAS_KEY$HAS_TOKEN" ]; then
+          echo "Set anthropic_api_key or claude_code_oauth_token." >&2
+          exit 1
+        fi
         if [ -z "$PR_NUMBER" ]; then
           echo "pr-review runs on pull_request events only." >&2
           exit 1
@@ -63,6 +74,7 @@ runs:
       uses: anthropics/claude-code-action@v1
       with:
         anthropic_api_key: ${{ inputs.anthropic_api_key }}
+        claude_code_oauth_token: ${{ inputs.claude_code_oauth_token }}
         github_token: ${{ inputs.github_token }}
         plugin_marketplaces: "https://github.com/kinu01/claude-pr-review-skill.git"
         plugins: "pr-review@kinu01"

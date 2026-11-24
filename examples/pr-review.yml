@@ -1,5 +1,6 @@
 # Copy this file to .github/workflows/pr-review.yml in your repository,
-# and add your Anthropic API key as a repository secret named ANTHROPIC_API_KEY.
+# and add ONE repository secret: CLAUDE_CODE_OAUTH_TOKEN (Claude Pro or Max, from `claude setup-token`)
+# or ANTHROPIC_API_KEY (Anthropic API account).
 name: pr-review
 
 on:
@@ -20,5 +21,6 @@ jobs:
           fetch-depth: 0
       - uses: kinu01/claude-pr-review-skill@v1
         with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           # depth: quick   # cheaper: skeptics only on high-severity findings
