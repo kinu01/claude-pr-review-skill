@@ -1,6 +1,6 @@
 ---
 name: pr-review
-description: Rigorous 20-category review of the current branch's changes (race conditions, security, query performance, newly-reachable helpers, real-data validation, accessibility and React rendering for frontend files). Starts with a story-first context pass - intent, usage examples, and an understood/not-understood ledger built BEFORE reading the diff. Three modes - self-review, run after writing code and before committing every PR; Mode A teammate review, triggered by "pr-review for <teammate name> <PR link>", which delivers findings as inline PR comments approved one at a time; and Mode C, the unattended GitHub Action run on every pull request.
+description: Rigorous 21-category review of the current branch's changes (race conditions, security, query performance, newly-reachable helpers, real-data validation, accessibility, React performance and memory leaks, and styling for frontend files). Starts with a story-first context pass - intent, usage examples, and an understood/not-understood ledger built BEFORE reading the diff. Three modes - self-review, run after writing code and before committing every PR; Mode A teammate review, triggered by "pr-review for <teammate name> <PR link>", which delivers findings as inline PR comments approved one at a time; and Mode C, the unattended GitHub Action run on every pull request.
 ---
 
 # PR Review Skill
@@ -123,13 +123,13 @@ Dispatch four sub-agents in parallel via the Agent tool instead of walking categ
 - **Quality agent:** Categories 2 (DRY), 3 (efficient), 4 (not lazy), 9 (complexity/SoC), 16 (pattern alignment)
 - **Security & surface agent:** Categories 11 (security, with the OWASP ID on every finding), 13 (implicit model surface), 15 (newly reachable helpers)
 - **Tests & perf agent:** Categories 6 (queries), 8 (missing tests), 14 (no lazy imports), 17 (real-data validation)
-- **Frontend agent (only when the diff touches frontend files):** Categories 19 (accessibility), 20 (React rendering and state), plus 7 (edge cases) and 12 (bet-your-life) read from the user's side of the screen: loading, empty, error and slow-network states.
+- **Frontend agent (only when the diff touches frontend files):** Categories 19 (accessibility), 20 (React performance, memory and state), 21 (styling and design system), plus 7 (edge cases) and 12 (bet-your-life) read from the user's side of the screen: loading, empty, error and slow-network states.
 
 In Mode C the router decides which buckets run: the Frontend agent only when `frontend` is true, and the Security & surface agent always gets the router's `security` file list as the files to read first. Correctness, Quality and Tests & perf always run.
 
 Each agent receives: the diff, the Step 1.5 story and reconciled ledger (by this point Step 2 has already tested the story against the code, so sharing it no longer biases anyone; it gives every bucket the same flows to trace), the relevant CLAUDE.md guidelines, and its assigned category list. Each agent also returns its own category-18 list (verifications it intended but skipped). After all four return, consolidate findings, deduplicate cross-cutting issues, merge the four category-18 lists into the final verdict's ledger, then score and filter per Output Format rules.
 
-**Bucket completeness check before dispatch:** every category from 1 to 17, plus 19 and 20, must appear in exactly one bucket above (7 and 12 are shared with the Frontend agent on purpose, for frontend files only; 18 is the meta-pass, merged at consolidation). If a future edit adds a category without assigning it here, assign it before dispatching — an unassigned category is silently skipped on exactly the PRs that need it most.
+**Bucket completeness check before dispatch:** every category from 1 to 17, plus 19 to 21, must appear in exactly one bucket above (7 and 12 are shared with the Frontend agent on purpose, for frontend files only; 18 is the meta-pass, merged at consolidation). If a future edit adds a category without assigning it here, assign it before dispatching — an unassigned category is silently skipped on exactly the PRs that need it most.
 
 There is no size threshold and no "it's small" exemption. If the diff is genuinely trivial (a typo, a comment, a single obvious line) say so in the verdict and name why no category applies, but that judgment is made *after* the buckets report, not instead of dispatching them.
 
@@ -527,14 +527,24 @@ Check every changed screen as a keyboard user and a screen-reader user would mee
 - **Zoom and text size:** the viewport meta does not block pinch zoom (`user-scalable=no` or `maximum-scale=1` are findings), and layouts survive 200% text.
 - Each finding names the WCAG 2.1 AA success criterion it breaks when one applies (for example 1.3.1, 2.1.1, 2.4.3, 4.1.2).
 
-### 20. React Rendering and State (frontend files only)
+### 20. React Performance, Memory and State (frontend files only)
 - **Needless re-renders:** a new object, array or function created in render and passed to a memoized child or a dependency array defeats the memo. Check whether the cost is real before reporting, using the list size and how often it runs.
 - **Effects:** every value an effect reads is in its dependency list, or the omission is deliberate and safe. An effect that sets state it also depends on can loop.
 - **Async results:** a fetch that resolves after unmount or after the input changed must not apply its result (abort, or an "is current" check that is set true on every mount, see the StrictMode note in category 7).
 - **Stale closures:** handlers and intervals that read state through a closure captured on an earlier render.
 - **Keys:** list keys are stable ids, never array indexes for lists that reorder, insert or delete.
 - **Third-party widgets mount once:** a payment or map widget rebuilt on an unrelated state change (a checkbox toggle) makes the page jump and drops what the user typed. Keep it in a ref and update its handlers instead.
-- **Heavy work blocks clicks:** expensive render work on every keystroke or click belongs behind `useDeferredValue`, `startTransition`, virtualization or memoized selectors. Name the interaction that will feel slow.
+- **Heavy work blocks clicks:** expensive render work on every keystroke or click belongs behind `useDeferredValue`, `startTransition`, virtualization or memoized selectors. Name the interaction that will feel slow (this is what drives a poor INP score).
+- **Memory leaks:** every `addEventListener`, `setInterval`, `setTimeout` loop, `ResizeObserver`/`IntersectionObserver`, WebSocket or store subscription, and `URL.createObjectURL` started in an effect or component is removed, cleared, disconnected, unsubscribed or revoked in the cleanup. Also flag caches, maps or arrays at module level that grow with every render or navigation and are never trimmed. Say what keeps growing and on which user action.
+- **Bundle weight:** a new import of a whole library where one function is used (`lodash`, icon packs, date or chart libraries), or a heavy component loaded on every page instead of lazily (`React.lazy`, dynamic `import()`). Name the import and the page that pays for it.
+
+### 21. Styling and Design System (frontend files only)
+- **Design tokens:** hard-coded colours, spacing, font sizes, radii or shadows where the project has tokens, theme values, CSS variables or Tailwind classes for them. Name the token that should be used.
+- **Reuse:** a new button, input, modal or layout built from scratch when the project's component library already has one, or inline styles that override a shared component instead of using its props or variants.
+- **Responsive layout:** fixed widths or heights, missing wrapping, or content that overflows on a 375 px wide phone; touch targets smaller than about 44 by 44 px.
+- **Stacking and overflow:** new `z-index` values outside the project's scale, `overflow: hidden` that clips focus rings, dropdowns or tooltips.
+- **Themes and contrast:** colours that only work in light mode, or text whose contrast falls below WCAG AA (4.5:1 for body text) in either theme.
+- If the project has its own design-system review skill or lint rules, run or follow them first and report only what they miss.
 
 ### 18. Verification Actions Not Yet Taken
 
@@ -664,7 +674,7 @@ Three mandatory sub-sections, in this order. Use the headings as shown.
 
 ### 📋 Categories — at-a-glance table
 
-A two-column markdown table covering every category from 1 to 17, plus 19 and 20. One row per category. Rows 19 and 20 say `N/A (no frontend files)` when the diff has none. (Category 18 is not a table row — it has its own mandatory sub-section below.) The "Result" column is short — `Clean`, `1 finding`, `2 findings`, or `N/A (reason)`. Never narrate categories in prose; the table replaces prose recap.
+A two-column markdown table covering every category from 1 to 17, plus 19 to 21. One row per category. Rows 19 to 21 say `N/A (no frontend files)` when the diff has none. (Category 18 is not a table row — it has its own mandatory sub-section below.) The "Result" column is short — `Clean`, `1 finding`, `2 findings`, or `N/A (reason)`. Never narrate categories in prose; the table replaces prose recap.
 
 ```
 | Category | Result |
@@ -687,7 +697,8 @@ A two-column markdown table covering every category from 1 to 17, plus 19 and 20
 | 16. Pattern alignment | Clean |
 | 17. Real-data validation | RAN — see ledger below |
 | 19. Accessibility | N/A (no frontend files) |
-| 20. React rendering and state | N/A (no frontend files) |
+| 20. React performance, memory and state | N/A (no frontend files) |
+| 21. Styling and design system | N/A (no frontend files) |
 ```
 
 If a category's result is `N/A`, the parenthesized reason must be specific — not "looks right." A category producing a finding must reference the corresponding finding section above.

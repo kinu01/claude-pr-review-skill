@@ -60,7 +60,7 @@ Built on Anthropic's [claude-code-action](https://github.com/anthropics/claude-c
 
 Then ask Claude Code to run `/pr-review` after you write code and before you commit. To review a teammate's pull request, ask "pr-review for <name> <PR link>". It lists every finding for you first, then drafts short inline comments and posts nothing until you approve each one.
 
-## The 20 review categories
+## The 21 review categories
 
 **Correctness:** 1 race conditions, 5 no assumptions, 7 edge cases, 10 questions we have not asked yet, 12 code works as expected.
 
@@ -70,7 +70,7 @@ Then ask Claude Code to run `/pr-review` after you write code and before you com
 
 **Tests and performance:** 6 optimized queries, 8 missing tests, 14 no lazy imports (only if your repo enforces it), 17 validate against real data (local runs only).
 
-**Frontend:** 19 accessibility (names, keyboard, focus, announcements, zoom, with the WCAG criterion), 20 React rendering and state (re-renders, effects, stale closures, keys, widgets that should mount once).
+**Frontend:** 19 accessibility (names, keyboard, focus, announcements, zoom, with the WCAG criterion), 20 React performance, memory and state (slow interactions, re-renders, memory leaks from listeners and timers never cleaned up, bundle weight, effects, stale closures), 21 styling and design system (design tokens, component reuse, responsive layout, z-index, theme contrast).
 
 **Meta:** 18 verification actions not yet taken. Every review lists what it did not check, so you know where its confidence ends.
 
