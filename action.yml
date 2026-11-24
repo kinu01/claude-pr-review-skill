@@ -25,6 +25,10 @@ inputs:
     description: "Upper limit on agent turns, to cap cost."
     required: false
     default: "60"
+  show_full_output:
+    description: "Print Claude's full output in the job log, for debugging a failed run."
+    required: false
+    default: "false"
 
 runs:
   using: "composite"
@@ -63,6 +67,7 @@ runs:
         plugin_marketplaces: "https://github.com/kinu01/claude-pr-review-skill.git"
         plugins: "pr-review@kinu01"
         use_sticky_comment: "true"
+        show_full_output: ${{ inputs.show_full_output }}
         prompt: |
           Run the pr-review skill in Mode C (GitHub Action, unattended).
 
